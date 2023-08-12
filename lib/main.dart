@@ -1,4 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 void main() async {
@@ -13,6 +15,64 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  List _allResult = [];
+  List _resultList = [];
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    getClientStream();
+    _searchController.addListener(_onSearchChanged);
+    super.initState();
+  }
+
+  _onSearchChanged() {
+    print(_searchController);
+    searchResultList();
+  }
+
+  searchResultList() {
+    var showResults = [];
+    if (_searchController.text != "") {
+      for (var clientSnapShot in _allResult) {
+        var name = clientSnapShot['name'].toString().toLowerCase();
+        if (name.contains(_searchController.text.toLowerCase())) {
+          showResults.add(clientSnapShot);
+        }
+      }
+    } else {
+      showResults = List.from(_allResult);
+    }
+    setState(() {
+      _resultList = showResults;
+    });
+  }
+
+  getClientStream() async {
+    var data = await FirebaseFirestore.instance
+        .collection('client')
+        .orderBy('name')
+        .get();
+
+    setState(() {
+      _allResult = data.docs;
+    });
+    searchResultList();
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    getClientStream();
+    super.didChangeDependencies();
+  }
+
   //This widget is the root of your application
   @override
   Widget build(BuildContext context) {
@@ -22,7 +82,29 @@ class _MyAppState extends State<MyApp> {
       theme: ThemeData(
         primaryColor: Colors.blue,
       ),
-      home: Scaffold(),
+      home: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          title: CupertinoSearchTextField(
+            controller: _searchController,
+          ),
+        ),
+        body: ListView.builder(
+            itemCount: _resultList.length,
+            itemBuilder: (context, index) {
+              return ListTile(
+                title: Text(
+                  _resultList[index]['name'],
+                ),
+                subtitle: Text(
+                  _resultList[index]['email'],
+                ),
+                trailing: Text(
+                  _resultList[index]['mobile'],
+                ),
+              );
+            }),
+      ),
     );
   }
 }
